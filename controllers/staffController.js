@@ -1,5 +1,6 @@
 const Staff = require("../models/Staff");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 // 🔑 Tạo JWT
 const generateToken = (staff) => {
@@ -7,6 +8,7 @@ const generateToken = (staff) => {
     {
       id: staff._id,
       MSNV: staff.MSNV,
+      Email: staff.Email,
       role: staff.ChucVu,
     },
     process.env.JWT_SECRET,
@@ -16,21 +18,71 @@ const generateToken = (staff) => {
   );
 };
 
-// ✅ Tạo nhân viên
+// ✅ Tạo nhân viên (Admin tạo trực tiếp)
 exports.createStaff = async (req, res) => {
   try {
-    const { MSNV } = req.body;
+    const { HoTenNV, Email, Password, ChucVu, Permissions, Status, MSNV } = req.body;
 
-    const exist = await Staff.findOne({ MSNV });
-    if (exist) {
-      return res.status(400).json({ message: "MSNV đã tồn tại" });
+    // Kiểm tra Email bắt buộc
+    if (!Email) {
+      return res.status(400).json({ message: "Email là bắt buộc" });
     }
 
-    const staff = await Staff.create(req.body);
+    // Kiểm tra định dạng Email
+    const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+    if (!emailRegex.test(Email)) {
+      return res.status(400).json({ message: "Email không hợp lệ" });
+    }
+
+    // Kiểm tra Tên bắt buộc
+    if (!HoTenNV) {
+      return res.status(400).json({ message: "Tên nhân viên là bắt buộc" });
+    }
+
+    // Kiểm tra Password bắt buộc
+    if (!Password) {
+      return res.status(400).json({ message: "Mật khẩu là bắt buộc" });
+    }
+
+    // Kiểm tra Email đã tồn tại
+    const emailExist = await Staff.findOne({ Email: Email.toLowerCase() });
+    if (emailExist) {
+      return res.status(400).json({ message: "Email đã tồn tại" });
+    }
+
+    // Kiểm tra MSNV nếu cung cấp
+    if (MSNV) {
+      const msNvExist = await Staff.findOne({ MSNV });
+      if (msNvExist) {
+        return res.status(400).json({ message: "Mã số nhân viên đã tồn tại" });
+      }
+    }
+
+    // Tạo nhân viên mới
+    const newStaff = new Staff({
+      MSNV: MSNV || null,
+      HoTenNV,
+      Email: Email.toLowerCase(),
+      Password,
+      ChucVu: ChucVu || "Thành viên",
+      Permissions: Permissions || "",
+      Status: Status !== undefined ? Status : 1,
+    });
+
+    await newStaff.save();
 
     res.status(201).json({
       message: "Tạo nhân viên thành công",
-      staff,
+      staff: {
+        id: newStaff._id,
+        MSNV: newStaff.MSNV,
+        HoTenNV: newStaff.HoTenNV,
+        Email: newStaff.Email,
+        ChucVu: newStaff.ChucVu,
+        Status: newStaff.Status,
+        Permissions: newStaff.Permissions,
+        createdAt: newStaff.createdAt,
+      },
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -40,11 +92,23 @@ exports.createStaff = async (req, res) => {
 // 🔑 Đăng nhập
 exports.loginStaff = async (req, res) => {
   try {
-    const { MSNV, Password } = req.body;
+    const { MSNV, Email, Password } = req.body;
 
-    const staff = await Staff.findOne({ MSNV });
+    // Tìm theo MSNV hoặc Email
+    let staff = null;
+    if (MSNV) {
+      staff = await Staff.findOne({ MSNV });
+    } else if (Email) {
+      staff = await Staff.findOne({ Email: Email.toLowerCase() });
+    }
+
     if (!staff) {
-      return res.status(400).json({ message: "Sai tài khoản" });
+      return res.status(400).json({ message: "Tài khoản không tồn tại" });
+    }
+
+    // Kiểm tra Status
+    if (staff.Status === 0) {
+      return res.status(401).json({ message: "Tài khoản bị khóa" });
     }
 
     const isMatch = await staff.comparePassword(Password);
@@ -61,6 +125,7 @@ exports.loginStaff = async (req, res) => {
         id: staff._id,
         MSNV: staff.MSNV,
         HoTenNV: staff.HoTenNV,
+        Email: staff.Email,
         ChucVu: staff.ChucVu,
       },
     });
@@ -101,16 +166,57 @@ exports.updateStaff = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy" });
     }
 
+    // Nếu cập nhật Email, kiểm tra tính hợp lệ
+    if (req.body.Email && req.body.Email !== staff.Email) {
+      const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+      if (!emailRegex.test(req.body.Email)) {
+        return res.status(400).json({ message: "Email không hợp lệ" });
+      }
+
+      const emailExist = await Staff.findOne({ 
+        Email: req.body.Email.toLowerCase(),
+        _id: { $ne: req.params.id }
+      });
+      if (emailExist) {
+        return res.status(400).json({ message: "Email đã tồn tại" });
+      }
+
+      req.body.Email = req.body.Email.toLowerCase();
+    }
+
+    // Nếu cập nhật MSNV, kiểm tra tính hợp lệ
+    if (req.body.MSNV && req.body.MSNV !== staff.MSNV) {
+      const msNvExist = await Staff.findOne({ 
+        MSNV: req.body.MSNV,
+        _id: { $ne: req.params.id }
+      });
+      if (msNvExist) {
+        return res.status(400).json({ message: "Mã số nhân viên đã tồn tại" });
+      }
+    }
+
     Object.assign(staff, req.body);
 
-    // nếu đổi password → hash lại
+    // Nếu đổi password → hash lại
     if (req.body.Password) {
       staff.Password = req.body.Password;
     }
 
     await staff.save();
 
-    res.json({ message: "Cập nhật thành công" });
+    res.json({ 
+      message: "Cập nhật thành công",
+      staff: {
+        id: staff._id,
+        MSNV: staff.MSNV,
+        HoTenNV: staff.HoTenNV,
+        Email: staff.Email,
+        ChucVu: staff.ChucVu,
+        Status: staff.Status,
+        Permissions: staff.Permissions,
+        updatedAt: staff.updatedAt,
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
