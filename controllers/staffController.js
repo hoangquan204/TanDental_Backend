@@ -74,7 +74,7 @@ exports.createStaff = async (req, res) => {
     res.status(201).json({
       message: "Tạo nhân viên thành công",
       staff: {
-        id: newStaff._id,
+        _id: newStaff._id,
         MSNV: newStaff.MSNV,
         HoTenNV: newStaff.HoTenNV,
         Email: newStaff.Email,
@@ -207,7 +207,7 @@ exports.updateStaff = async (req, res) => {
     res.json({ 
       message: "Cập nhật thành công",
       staff: {
-        id: staff._id,
+        _id: staff._id,
         MSNV: staff.MSNV,
         HoTenNV: staff.HoTenNV,
         Email: staff.Email,
