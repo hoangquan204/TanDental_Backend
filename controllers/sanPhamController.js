@@ -1,4 +1,4 @@
-const SanPham = require("../models/sanPhamModel");
+const SanPham = require("../models/sanPham");
 
 // Thêm sản phẩm mới
 exports.createSanPham = async (req, res) => {

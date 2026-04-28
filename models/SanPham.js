@@ -28,7 +28,7 @@ const sanPhamSchema = new mongoose.Schema(
         loaiSanPham: {
             type: String,
             enum: {
-                values: ["Cố định", "Miễn Phí", "Tháo Lắp"],
+                values: ["Cố định", "Miễn phí", "Tháo lắp"],
                 message: "{VALUE} không phải là loại sản phẩm hợp lệ",
             },
             required: [true, "Vui lòng chọn loại sản phẩm"],
@@ -64,11 +64,10 @@ const sanPhamSchema = new mongoose.Schema(
             },
             required: [true, "Vui lòng chọn loại (Sản xuất hoặc Dịch vụ)"],
         },
-        quyTrinhId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "QuyTrinh", // Trỏ đến Model QuyTrinh vừa tạo
-            default: null,
-        },
+quyTrinh: [{
+        tenCongDoan: String, // Lấy từ "Kho công đoạn" sang
+        thuTu: Number        // Số thứ tự 1, 2, 3 do bạn sắp xếp
+    }],
     },
     {
         timestamps: true, // Tự động thêm createdAt và updatedAt
