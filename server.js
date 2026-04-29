@@ -8,7 +8,6 @@ const staffRoutes = require("./routes/staffRoutes");
 const nhaKhoaRoutes = require("./routes/nhaKhoaRoutes");
 const nguoiLienHeRoutes = require("./routes/nguoiLienHeRoutes");
 const benhNhanRoutes = require("./routes/benhNhanRoutes");
-
 const app = express();
 
 app.use(cors());
@@ -30,7 +29,6 @@ const startServer = async () => {
     app.use("/api/nhakhoa", nhaKhoaRoutes);
     app.use("/api/nguoilienhe", nguoiLienHeRoutes);
     app.use("/api/benhnhan", benhNhanRoutes);
-
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

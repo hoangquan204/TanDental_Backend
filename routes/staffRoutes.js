@@ -17,7 +17,7 @@ router.post("/register", createStaff);
 router.post("/login", loginStaff);
 
 // 🔒 private
-router.get("/",verifyToken, getAllStaff);
+router.get("/", getAllStaff);
 router.get("/:id", verifyToken, getStaffById);
 router.put("/:id", verifyToken, updateStaff);
 router.delete("/:id", verifyToken, deleteStaff);
