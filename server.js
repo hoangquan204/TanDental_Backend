@@ -11,6 +11,8 @@ const benhNhanRoutes = require("./routes/benhNhanRoutes");
 const sanPhamRoutes = require("./routes/sanPhamRoutes");
 const congDoanRoutes = require("./routes/congDoanRoutes");
 const chamSocRoutes = require("./routes/chamSocKhachHangRoutes");
+const bangGiaRoutes = require("./routes/bangGiaRoutes");
+
 const app = express();
 
 app.use(cors());
@@ -35,6 +37,7 @@ const startServer = async () => {
     app.use("/api/sanpham", sanPhamRoutes);
     app.use("/api/congdoan", congDoanRoutes);
     app.use("/api/cham-soc-khach-hang", chamSocRoutes);
+    app.use("/api/bang-gia", bangGiaRoutes);
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
