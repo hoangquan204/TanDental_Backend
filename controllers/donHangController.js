@@ -76,3 +76,34 @@ exports.getDonHangById = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+// [PUT] Cập nhật đơn hàng
+exports.updateDonHang = async (req, res) => {
+    try {
+        const updatedDonHang = await DonHang.findByIdAndUpdate(req.params.id, req.body, { new: true })
+            .populate("nhaKhoa bacSi benhNhan")
+            .populate("danhSachSanPham.sanPham")
+            .populate("danhSachSanPham.donHangCu");
+
+        if (!updatedDonHang) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
+        }
+
+        res.status(200).json({ success: true, data: updatedDonHang });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+// [DELETE] Xóa đơn hàng
+exports.deleteDonHang = async (req, res) => {
+    try {
+        const deletedDonHang = await DonHang.findByIdAndDelete(req.params.id);
+        if (!deletedDonHang) {
+            return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng" });
+        }
+        res.status(200).json({ success: true, message: "Xóa đơn hàng thành công" });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
