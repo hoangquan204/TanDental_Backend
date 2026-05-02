@@ -8,6 +8,11 @@ const staffRoutes = require("./routes/staffRoutes");
 const nhaKhoaRoutes = require("./routes/nhaKhoaRoutes");
 const nguoiLienHeRoutes = require("./routes/nguoiLienHeRoutes");
 const benhNhanRoutes = require("./routes/benhNhanRoutes");
+const sanPhamRoutes = require("./routes/sanPhamRoutes");
+const congDoanRoutes = require("./routes/congDoanRoutes");
+const donHangRoutes = require("./routes/donHangRoutes");
+const chamSocRoutes = require("./routes/chamSocKhachHangRoutes");
+const bangGiaRoutes = require("./routes/bangGiaRoutes");
 
 const app = express();
 
@@ -30,7 +35,11 @@ const startServer = async () => {
     app.use("/api/nhakhoa", nhaKhoaRoutes);
     app.use("/api/nguoilienhe", nguoiLienHeRoutes);
     app.use("/api/benhnhan", benhNhanRoutes);
-
+    app.use("/api/sanpham", sanPhamRoutes);
+    app.use("/api/congdoan", congDoanRoutes);
+    app.use("/api/donhang", donHangRoutes);
+    app.use("/api/cham-soc-khach-hang", chamSocRoutes);
+    app.use("/api/bang-gia", bangGiaRoutes);
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
