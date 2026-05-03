@@ -2,11 +2,6 @@ const mongoose = require("mongoose");
 
 const hoaDonSchema = new mongoose.Schema(
   {
-    soHoaDon: {
-      type: String,
-      unique: true,
-      required: true,
-    },
 
     nhaKhoa: {
       type: mongoose.Schema.Types.ObjectId,
