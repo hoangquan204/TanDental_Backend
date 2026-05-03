@@ -87,6 +87,10 @@ exports.createHoaDon = async (req, res) => {
     const count = await HoaDon.countDocuments();
     const soHoaDon = `HD${String(count + 1).padStart(5, "0")}`;
 
+    // ✅ NEW
+    const daThanhToan = 0;
+    const conLai = thanhTien;
+
     const hoaDon = new HoaDon({
       soHoaDon,
       nhaKhoa: nhaKhoaId,
@@ -94,6 +98,8 @@ exports.createHoaDon = async (req, res) => {
       tongTien,
       tongChietKhau,
       thanhTien,
+      daThanhToan,
+      conLai
     });
 
     await hoaDon.save();
@@ -197,32 +203,57 @@ exports.getAllHoaDon = async (req, res) => {
 exports.updateHoaDon = async (req, res) => {
   try {
     const { id } = req.params;
-    const { trangThai, danhSachDonHangUpdate } = req.body;
+    const { trangThai, danhSachDonHang } = req.body;
 
-    // 1. Tìm hóa đơn hiện tại
     let hoaDon = await HoaDon.findById(id);
     if (!hoaDon) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy hóa đơn" });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hóa đơn",
+      });
     }
 
-    // 2. Nếu chỉ cập nhật trạng thái thanh toán
+    // ✅ UPDATE TRẠNG THÁI
     if (trangThai) {
       hoaDon.trangThai = trangThai;
     }
 
-    // 3. Nếu cần cập nhật lại chiết khấu hoặc danh sách đơn hàng (Nâng cao)
-    if (danhSachDonHangUpdate) {
-      // Logic tương tự như khi tạo: tính toán lại tongTien, tongChietKhau...
-      // Lưu ý: Nếu xóa bớt đơn hàng khỏi hóa đơn, cần cập nhật lại daXuatHoaDon: false cho đơn hàng đó
-      hoaDon.danhSachDonHang = danhSachDonHangUpdate;
-      
-      // Tính toán lại các con số tổng
+    /* ================= 🔥 THÊM PHẦN NÀY ================= */
+    if (danhSachDonHang) {
+      // 👉 Lấy danh sách cũ
+      const oldIds = hoaDon.danhSachDonHang.map((i) =>
+        i.donHang.toString()
+      );
+
+      // 👉 Danh sách mới
+      const newIds = danhSachDonHang.map((i) =>
+        i.donHang.toString()
+      );
+
+      // 🔥 Tìm đơn bị XÓA
+      const removedIds = oldIds.filter((id) => !newIds.includes(id));
+
+      // 🔥 Update lại trạng thái đơn hàng bị remove
+      if (removedIds.length > 0) {
+        await DonHang.updateMany(
+          { _id: { $in: removedIds } },
+          { $set: { daXuatHoaDon: false } }
+        );
+      }
+
+      /* ================================================ */
+
+      // ✅ GÁN DANH SÁCH MỚI
+      hoaDon.danhSachDonHang = danhSachDonHang;
+
+      // ✅ TÍNH LẠI TIỀN
       let moiTongTien = 0;
       let moiTongChietKhau = 0;
 
-      hoaDon.danhSachDonHang.forEach(item => {
-        moiTongTien += item.tongTien;
-        moiTongChietKhau += (item.tongTien - item.thanhTienSauCK);
+      hoaDon.danhSachDonHang.forEach((item) => {
+        moiTongTien += item.tongTien || 0;
+        moiTongChietKhau +=
+          (item.tongTien || 0) - (item.thanhTienSauCK || 0);
       });
 
       hoaDon.tongTien = moiTongTien;
@@ -235,9 +266,120 @@ exports.updateHoaDon = async (req, res) => {
     res.json({
       success: true,
       message: "Cập nhật hóa đơn thành công",
-      data: updatedHoaDon
+      data: updatedHoaDon,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// Thanh toán hóa đơn (có thể thanh toán nhiều lần)
+exports.thanhToanHoaDon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { soTienThanhToan } = req.body;
+
+    if (!soTienThanhToan || soTienThanhToan <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Số tiền thanh toán không hợp lệ",
+      });
+    }
+
+    const hoaDon = await HoaDon.findById(id);
+
+    if (!hoaDon) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hóa đơn",
+      });
+    }
+
+    // ❌ Không cho trả dư quá nhiều
+    if (soTienThanhToan > hoaDon.conLai) {
+      return res.status(400).json({
+        success: false,
+        message: "Số tiền vượt quá số tiền còn lại",
+      });
+    }
+
+    // ✅ Cập nhật tiền
+    hoaDon.daThanhToan += soTienThanhToan;
+    hoaDon.conLai = hoaDon.thanhTien - hoaDon.daThanhToan;
+
+    // ✅ Update trạng thái
+    if (hoaDon.conLai === 0) {
+      hoaDon.trangThai = "Đã thanh toán";
+    } else {
+      hoaDon.trangThai = "Thanh toán một phần";
+    }
+
+    await hoaDon.save();
+
+    res.json({
+      success: true,
+      message: "Thanh toán thành công",
+      data: hoaDon,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Xóa hóa đơn
+exports.deleteHoaDon = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const hoaDon = await HoaDon.findById(id);
+
+    if (!hoaDon) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hóa đơn",
+      });
+    }
+
+    const trangThai = hoaDon.trangThai;
+
+    // ❌ Không cho xóa nếu thanh toán một phần
+    if (trangThai === "Thanh toán một phần") {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể xóa hóa đơn đã thanh toán một phần",
+      });
+    }
+
+    // 🔥 Nếu CHƯA THANH TOÁN → rollback đơn hàng
+    if (trangThai === "Chưa thanh toán") {
+      const donHangIds = hoaDon.danhSachDonHang.map((item) =>
+        item.donHang.toString()
+      );
+
+      if (donHangIds.length > 0) {
+        await DonHang.updateMany(
+          { _id: { $in: donHangIds } },
+          { $set: { daXuatHoaDon: false } }
+        );
+      }
+    }
+
+    // 🔥 Nếu ĐÃ THANH TOÁN → KHÔNG rollback
+
+    // ✅ Xóa hóa đơn
+    await HoaDon.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: "Xóa hóa đơn thành công",
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };

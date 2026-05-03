@@ -42,7 +42,6 @@ const startServer = async () => {
     app.use("/api/bang-gia", bangGiaRoutes);
     app.use("/api/donhang", donHangRoutes);
     app.use("/api/hoa-don", hoaDonRoutes)
-
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
