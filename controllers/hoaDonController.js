@@ -85,14 +85,12 @@ exports.createHoaDon = async (req, res) => {
 
     // 🔢 Tạo số hóa đơn
     const count = await HoaDon.countDocuments();
-    const soHoaDon = `HD${String(count + 1).padStart(5, "0")}`;
 
     // ✅ NEW
     const daThanhToan = 0;
     const conLai = thanhTien;
 
     const hoaDon = new HoaDon({
-      soHoaDon,
       nhaKhoa: nhaKhoaId,
       danhSachDonHang: resultDonHang,
       tongTien,
@@ -130,9 +128,6 @@ exports.getAllHoaDonAdmin = async (req, res) => {
       query.trangThai = trangThai;
     }
 
-    if (search) {
-      query.soHoaDon = { $regex: search, $options: "i" };
-    }
 
     const total = await HoaDon.countDocuments(query);
     
@@ -177,9 +172,7 @@ exports.getAllHoaDon = async (req, res) => {
     }
 
     // Tìm kiếm theo số hóa đơn nếu có
-    if (search) {
-      query.soHoaDon = { $regex: search, $options: "i" };
-    }
+   
 
     const danhSachHoaDon = await HoaDon.find(query)
       .populate("nhaKhoa", "tenNhaKhoa")
