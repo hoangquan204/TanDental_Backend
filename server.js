@@ -16,6 +16,7 @@ const donHangRoutes = require("./routes/donHangRoutes");
 const hoaDonRoutes = require("./routes/hoaDonRoutes");
 const quyenSuDungRoutes = require("./routes/quyenSuDungRoutes");
 const congTyRoutes = require("./routes/congTyRoutes");
+const nhaCungCapRoutes = require("./routes/nhaCungCapRoutes");
 
 const app = express();
 
@@ -46,6 +47,7 @@ const startServer = async () => {
     app.use("/api/hoa-don", hoaDonRoutes);
     app.use("/api/quyen-su-dung", quyenSuDungRoutes);
     app.use("/api/cong-ty", congTyRoutes);
+    app.use("/api/nha-cung-cap", nhaCungCapRoutes);
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
