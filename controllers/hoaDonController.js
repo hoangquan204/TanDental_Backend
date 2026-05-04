@@ -12,7 +12,7 @@ exports.getDonHangChuaXuatHoaDon = async (req, res) => {
       nhaKhoa: nhaKhoaId,
       daXuatHoaDon: { $ne: true },
     })
-      .populate("benhNhan", "hoVaTen")
+      .populate("bacSi", "hoVaTen")
       .sort({ createdAt: -1 });
 
     res.json(donHangs);
@@ -121,24 +121,42 @@ exports.getAllHoaDonAdmin = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const { trangThai, search } = req.query;
+    const { trangThai, search, nhaKhoaId } = req.query;
+
     let query = {};
 
+    // ✅ Lọc theo trạng thái
     if (trangThai) {
       query.trangThai = trangThai;
     }
 
+    // ✅ Lọc theo nha khoa
+    if (nhaKhoaId) {
+      query.nhaKhoa = nhaKhoaId;
+    }
+
+    // ✅ Search theo số hóa đơn hoặc _id
+    if (search) {
+      query.$or = [
+        {
+          soHoaDon: { $regex: search, $options: "i" },
+        },
+        ...(search.match(/^[0-9a-fA-F]{24}$/)
+          ? [{ _id: search }]
+          : []),
+      ];
+    }
 
     const total = await HoaDon.countDocuments(query);
-    
+
     const danhSach = await HoaDon.find(query)
       .populate("nhaKhoa", "hoVaTen tinh")
       .populate({
         path: "danhSachDonHang.donHang",
-        select: "_id", // Chỉ lấy ID của đơn hàng như bạn yêu cầu
+        select: "_id",
         populate: {
           path: "danhSachSanPham.sanPham",
-          select: "tenSanPham", // Chỉ lấy tên sản phẩm từ model SanPham
+          select: "tenSanPham",
         },
       })
       .sort({ createdAt: -1 })
@@ -151,7 +169,7 @@ exports.getAllHoaDonAdmin = async (req, res) => {
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      data: danhSach
+      data: danhSach,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
