@@ -676,7 +676,7 @@ exports.getHoaDonById = async (req, res) => {
           $match: {
             nhaKhoa: hoaDon.nhaKhoa._id,
             _id: { $ne: hoaDon._id },
-            trangThai: { $nin: ["Đã thanh toán", "Lưu tạm"] },
+            trangThai: { $nin: ["Đã thanh toán"] },
             $or: [
               { ngayXuatHoaDon: { $lt: hoaDon.ngayXuatHoaDon } },
               { ngayXuatHoaDon: hoaDon.ngayXuatHoaDon, createdAt: { $lt: hoaDon.createdAt } }
