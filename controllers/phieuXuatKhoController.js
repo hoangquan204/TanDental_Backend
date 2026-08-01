@@ -1,6 +1,10 @@
 const PhieuXuatKho = require("../models/PhieuXuatKho");
 const VatLieu = require("../models/VatLieu");
 
+function escapeRegex(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 exports.getOptions = async (req, res) => {
     try {
         const [boPhanList, nhanVienList] = await Promise.all([
@@ -27,7 +31,7 @@ exports.getAll = async (req, res) => {
 
         const filter = {};
 
-        if (req.query.soPhieu) filter.soPhieu = { $regex: req.query.soPhieu, $options: "i" };
+        if (req.query.soPhieu) filter.soPhieu = { $regex: escapeRegex(req.query.soPhieu), $options: "i" };
         if (req.query.trangThai) {
             const values = req.query.trangThai.split(",").filter(Boolean);
             filter.trangThai = values.length === 1 ? values[0] : { $in: values };
@@ -38,7 +42,7 @@ exports.getAll = async (req, res) => {
         // Lọc theo tên vật liệu — tìm các VatLieu khớp tên rồi lọc phiếu chứa vật liệu đó
         if (req.query.tenVatLieu) {
             const vlMatches = await VatLieu.find({
-                tenVatLieu: { $regex: req.query.tenVatLieu, $options: "i" },
+                tenVatLieu: { $regex: escapeRegex(req.query.tenVatLieu), $options: "i" },
             }).select("_id");
 
             if (vlMatches.length) {
@@ -48,13 +52,21 @@ exports.getAll = async (req, res) => {
             }
         }
 
-        // Search chung: số phiếu HOẶC bộ phận HOẶC nhân viên
+        // Search chung: số phiếu HOẶC bộ phận HOẶC nhân viên HOẶC tên vật liệu trong phiếu
         if (req.query.timKiem) {
-            const kw = req.query.timKiem;
+            const kw = escapeRegex(req.query.timKiem);
+
+            const vlMatches = await VatLieu.find({
+                tenVatLieu: { $regex: kw, $options: "i" },
+            }).select("_id");
+
             filter.$or = [
                 { soPhieu: { $regex: kw, $options: "i" } },
                 { boPhan: { $regex: kw, $options: "i" } },
                 { nhanVien: { $regex: kw, $options: "i" } },
+                ...(vlMatches.length
+                    ? [{ "danhSachVatLieu.vatLieu": { $in: vlMatches.map((v) => v._id) } }]
+                    : []),
             ];
         }
 

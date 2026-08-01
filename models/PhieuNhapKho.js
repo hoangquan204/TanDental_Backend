@@ -59,6 +59,10 @@ const phieuNhapKhoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    phiPhatSinh: {
+        type: Number,
+        default: 0
+    },
     ngayNhan: {
         type: Date
     },

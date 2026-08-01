@@ -2,6 +2,10 @@ const PhieuNhapKho = require("../models/PhieuNhapKho");
 const VatLieu = require("../models/VatLieu");
 const NhaCungCap = require("../models/NhaCungCap");
 
+function escapeRegex(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 exports.getAll = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -11,7 +15,7 @@ exports.getAll = async (req, res) => {
         const filter = {};
 
         if (req.query.soPhieu) {
-            filter.soPhieu = { $regex: req.query.soPhieu, $options: "i" };
+            filter.soPhieu = { $regex: escapeRegex(req.query.soPhieu), $options: "i" };
         }
 
         // backward-compat: trangThai cũ → trangThaiNhap / trangThaiThanhToan
@@ -49,7 +53,7 @@ exports.getAll = async (req, res) => {
         }
 
         if (req.query.nguoiTao) {
-            filter.nguoiTao = { $regex: req.query.nguoiTao, $options: "i" };
+            filter.nguoiTao = { $regex: escapeRegex(req.query.nguoiTao), $options: "i" };
         }
 
         // NCC nay là top-level field (chọn từ select, khớp chính xác)
@@ -65,7 +69,7 @@ exports.getAll = async (req, res) => {
         // Lọc theo tên vật liệu — tìm các VatLieu khớp tên rồi lọc phiếu chứa vật liệu đó
         if (req.query.tenVatLieu) {
             const vlMatches = await VatLieu.find({
-                tenVatLieu: { $regex: req.query.tenVatLieu, $options: "i" },
+                tenVatLieu: { $regex: escapeRegex(req.query.tenVatLieu), $options: "i" },
             }).select("_id");
 
             if (vlMatches.length) {
@@ -75,16 +79,21 @@ exports.getAll = async (req, res) => {
             }
         }
 
-        // Search chung: số phiếu HOẶC tên nhà cung cấp
+        // Search chung: số phiếu HOẶC tên nhà cung cấp HOẶC tên vật liệu trong phiếu
         if (req.query.timKiem) {
-            const kw = req.query.timKiem;
-            const nccMatches = await NhaCungCap.find({
-                ten: { $regex: kw, $options: "i" },
-            }).select("_id");
+            const kw = escapeRegex(req.query.timKiem);
+
+            const [nccMatches, vlMatches] = await Promise.all([
+                NhaCungCap.find({ ten: { $regex: kw, $options: "i" } }).select("_id"),
+                VatLieu.find({ tenVatLieu: { $regex: kw, $options: "i" } }).select("_id"),
+            ]);
 
             filter.$or = [
                 { soPhieu: { $regex: kw, $options: "i" } },
                 ...(nccMatches.length ? [{ nhaCungCap: { $in: nccMatches.map((n) => n._id) } }] : []),
+                ...(vlMatches.length
+                    ? [{ "danhSachVatLieu.vatLieu": { $in: vlMatches.map((v) => v._id) } }]
+                    : []),
             ];
         }
 
@@ -176,8 +185,16 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
     try {
         const { id } = req.params;
-        const { trangThaiNhap, trangThaiThanhToan, nhaCungCap, ghiChu, danhSachVatLieu, currentRole, VAT } =
-            req.body;
+        const {
+            trangThaiNhap,
+            trangThaiThanhToan,
+            nhaCungCap,
+            ghiChu,
+            danhSachVatLieu,
+            currentRole,
+            VAT,
+            phiPhatSinh
+        } = req.body;
 
         const phieu = await PhieuNhapKho.findById(id);
         if (!phieu) {
@@ -216,6 +233,7 @@ exports.update = async (req, res) => {
         if (danhSachVatLieu !== undefined) phieu.danhSachVatLieu = danhSachVatLieu;
         if (nhaCungCap !== undefined) phieu.nhaCungCap = nhaCungCap || null;
         if (VAT !== undefined) phieu.VAT = VAT;
+        if (phiPhatSinh !== undefined) phieu.phiPhatSinh = phiPhatSinh || 0;
 
         await phieu.save();
 
