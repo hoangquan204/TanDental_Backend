@@ -111,7 +111,7 @@ exports.getAll = async (req, res) => {
 
         const phieuNhapKhos = await PhieuNhapKho.find(filter)
             .select(
-                "ngayTao soPhieu trangThaiNhap trangThaiThanhToan nguoiTao ghiChu nhaCungCap danhSachVatLieu ngayNhan VAT"
+                "ngayTao soPhieu trangThaiNhap trangThaiThanhToan nguoiTao ghiChu nhaCungCap danhSachVatLieu ngayNhan VAT phiPhatSinh"
             )
             .populate("nhaCungCap", "ten")
             .populate("danhSachVatLieu.vatLieu", "tenVatLieu donViTinh")
