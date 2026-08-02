@@ -40,13 +40,15 @@ exports.getAll = async (req, res) => {
         if (req.query.boPhan) filter.boPhan = req.query.boPhan;
 
         // Lọc theo tên vật liệu — tìm các VatLieu khớp tên rồi lọc phiếu chứa vật liệu đó
+        let vlMatchIdsForFilter = null;
         if (req.query.tenVatLieu) {
             const vlMatches = await VatLieu.find({
                 tenVatLieu: { $regex: escapeRegex(req.query.tenVatLieu), $options: "i" },
             }).select("_id");
 
             if (vlMatches.length) {
-                filter["danhSachVatLieu.vatLieu"] = { $in: vlMatches.map((v) => v._id) };
+                vlMatchIdsForFilter = vlMatches.map((v) => v._id);
+                filter["danhSachVatLieu.vatLieu"] = { $in: vlMatchIdsForFilter };
             } else {
                 return res.status(200).json({ success: true, data: [], total: 0, page, limit });
             }
@@ -89,7 +91,23 @@ exports.getAll = async (req, res) => {
             .skip(skip)
             .limit(limit);
 
-        res.status(200).json({ success: true, data: phieuXuatKhos, total, page, limit });
+        // Nếu FE yêu cầu chỉ lấy đúng vật liệu khớp tìm kiếm (dùng cho trang tổng hợp vật liệu),
+        // lọc bớt các item không khớp trong danhSachVatLieu của mỗi phiếu.
+        const chiLayVatLieuKhop = req.query.chiLayVatLieuKhop === "true";
+        let data = phieuXuatKhos;
+
+        if (chiLayVatLieuKhop && vlMatchIdsForFilter) {
+            const vlMatchIdSet = new Set(vlMatchIdsForFilter.map((id) => id.toString()));
+            data = phieuXuatKhos.map((phieu) => {
+                const obj = phieu.toObject();
+                obj.danhSachVatLieu = obj.danhSachVatLieu.filter((item) =>
+                    vlMatchIdSet.has(item.vatLieu?._id?.toString())
+                );
+                return obj;
+            });
+        }
+
+        res.status(200).json({ success: true, data, total, page, limit });
     } catch (error) {
         res.status(500).json({
             success: false,

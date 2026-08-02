@@ -119,12 +119,29 @@ exports.getAll = async (req, res) => {
             .skip(skip)
             .limit(limit);
 
+        // trong getAll, sau khi có `phieuNhapKhos`:
+        const chiLayVatLieuKhop = req.query.chiLayVatLieuKhop === "true";
+
+        let vlMatchIds = null;
+        if (chiLayVatLieuKhop && req.query.tenVatLieu) {
+            const vlMatches = await VatLieu.find({
+                tenVatLieu: { $regex: escapeRegex(req.query.tenVatLieu), $options: "i" },
+            }).select("_id");
+            vlMatchIds = new Set(vlMatches.map((v) => v._id.toString()));
+        }
+
         const data = phieuNhapKhos.map((phieu) => {
-            const tongTien = phieu.danhSachVatLieu.reduce(
+            const obj = phieu.toObject();
+            if (vlMatchIds) {
+                obj.danhSachVatLieu = obj.danhSachVatLieu.filter((item) =>
+                    vlMatchIds.has(item.vatLieu?._id?.toString())
+                );
+            }
+            const tongTien = obj.danhSachVatLieu.reduce(
                 (sum, item) => sum + (item.thanhTien || 0),
                 0
             );
-            return { ...phieu.toObject(), tongTien };
+            return { ...obj, tongTien };
         });
 
         res.status(200).json({ success: true, data, total, page, limit });
